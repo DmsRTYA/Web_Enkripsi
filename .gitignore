@@ -1,11 +1,26 @@
+# Node.js
 frontend/node_modules/
 frontend/.next/
+frontend/dist/
+
+# Python
 backend/venv/
 backend/__pycache__/
-backend/main.py
-backend/data_dummy/
+backend/*.pyc
+backend/*.pyo
+backend/*.pyd
+backend/.pytest_cache/
+backend/pengujian/__pycache__/
+
+# Output Data
+
+.agents/
 
 # Berkas Rahasia
 .env
 *.pem
 *.key
+*.log
+prompt.txt
+progres.md
+skills-lock.json

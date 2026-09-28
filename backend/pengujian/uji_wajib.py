@@ -6,6 +6,7 @@ import base64
 from collections import Counter
 import matplotlib.pyplot as plt
 
+
 # Memasukkan direktori induk agar bisa mengimpor logika
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import logika
