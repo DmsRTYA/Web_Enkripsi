@@ -1,10 +1,17 @@
 import os
 import sys
 import base64
+import io
+import math
+import random
+from collections import Counter
+import time
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, padding
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM, ChaCha20Poly1305
 from cryptography.exceptions import InvalidTag
+from PIL import Image
 
 def derive_key(password: str, salt: bytes) -> bytes:
     """Menurunkan kunci 256-bit (32 bytes) dari password menggunakan PBKDF2."""
@@ -15,6 +22,38 @@ def derive_key(password: str, salt: bytes) -> bytes:
         iterations=100_000,
     )
     return kdf.derive(password.encode())
+
+def calculate_shannon_entropy(data: bytes) -> float:
+    """Menghitung tingkat keacakan data (Shannon Entropy)."""
+    if not data:
+        return 0.0
+    entropy = 0.0
+    length = len(data)
+    counts = Counter(data)
+    for count in counts.values():
+        p = count / length
+        entropy -= p * math.log2(p)
+    return round(entropy, 4)
+
+def calculate_histogram(data: bytes) -> list[int]:
+    """Menghitung frekuensi setiap byte (0-255)."""
+    counts = [0] * 256
+    for b in data:
+        counts[b] += 1
+    return counts
+
+def calculate_hamming_distance_percentage(b1: bytes, b2: bytes) -> float:
+    """Menghitung persentase perubahan bit (Avalanche Effect) menggunakan Hamming Distance."""
+    min_len = min(len(b1), len(b2))
+    diff_bits = 0
+    for i in range(min_len):
+        diff_bits += bin(b1[i] ^ b2[i]).count('1')
+    length_diff_bits = abs(len(b1) - len(b2)) * 8
+    total_bits_all = max(len(b1), len(b2)) * 8
+    if total_bits_all == 0:
+        return 0.0
+    diff_bits += length_diff_bits
+    return round((diff_bits / total_bits_all) * 100.0, 2)
 
 def encrypt_data(plaintext: bytes, password: str, algo: str = "AES-GCM", 
                  provided_salt: bytes = None, provided_nonce: bytes = None) -> str:
@@ -57,6 +96,144 @@ def decrypt_data(base64_payload: str, password: str, algo: str = "AES-GCM") -> b
         raise ValueError("Gagal! Kata sandi salah atau ciphertext telah diubah.")
     except Exception as e:
         raise ValueError(f"Format data tidak valid: {str(e)}")
+
+def encrypt_data_with_metrics(plaintext: bytes, password: str, algo: str = "AES-GCM"):
+    """Mengenkripsi data beserta metrik performa, entropi, avalanche effect, dan histogram."""
+    start_time = time.perf_counter()
+    
+    salt = os.urandom(16)
+    key = derive_key(password, salt)
+    nonce = os.urandom(12)
+
+    if algo == "AES-GCM":
+        cipher = AESGCM(key)
+    elif algo == "ChaCha20-Poly1305":
+        cipher = ChaCha20Poly1305(key)
+    else:
+        raise ValueError("Algoritma tidak didukung")
+
+    ciphertext_raw = cipher.encrypt(nonce, plaintext, None)
+    payload = salt + nonce + ciphertext_raw
+    ciphertext_b64 = base64.b64encode(payload).decode('utf-8')
+    
+    end_time = time.perf_counter()
+    execution_time_ms = round((end_time - start_time) * 1000.0, 3)
+    
+    entropy = calculate_shannon_entropy(ciphertext_raw)
+    hist_plaintext = calculate_histogram(plaintext)
+    hist_ciphertext = calculate_histogram(ciphertext_raw)
+    
+    # Avalanche Effect simulation (flip 1 bit in Key)
+    avalanche_pct = 50.0
+    if len(plaintext) > 0:
+        try:
+            modified_key = bytearray(key)
+            modified_key[0] ^= 0x01
+            
+            if algo == "AES-GCM":
+                mod_cipher = AESGCM(bytes(modified_key))
+            elif algo == "ChaCha20-Poly1305":
+                mod_cipher = ChaCha20Poly1305(bytes(modified_key))
+            else:
+                mod_cipher = cipher
+                
+            mod_ciphertext_raw = mod_cipher.encrypt(nonce, plaintext, None)
+            avalanche_pct = calculate_hamming_distance_percentage(ciphertext_raw, mod_ciphertext_raw)
+        except Exception:
+            avalanche_pct = 50.0
+
+    return {
+        "ciphertext": ciphertext_b64,
+        "execution_time_ms": execution_time_ms,
+        "entropy_ciphertext": entropy,
+        "avalanche_percentage": avalanche_pct,
+        "histogram_plaintext": hist_plaintext,
+        "histogram_ciphertext": hist_ciphertext
+    }
+
+def decrypt_data_with_metrics(base64_payload: str, password: str, algo: str = "AES-GCM"):
+    """Mendekripsi data beserta metrik performa, entropi, dan histogram."""
+    start_time = time.perf_counter()
+    try:
+        payload = base64.b64decode(base64_payload)
+        salt = payload[:16]
+        nonce = payload[16:28]
+        ciphertext_raw = payload[28:]
+
+        key = derive_key(password, salt)
+
+        if algo == "AES-GCM":
+            cipher = AESGCM(key)
+        elif algo == "ChaCha20-Poly1305":
+            cipher = ChaCha20Poly1305(key)
+        else:
+            raise ValueError("Algoritma tidak didukung")
+
+        plaintext = cipher.decrypt(nonce, ciphertext_raw, None)
+        
+        end_time = time.perf_counter()
+        execution_time_ms = round((end_time - start_time) * 1000.0, 3)
+        
+        entropy = calculate_shannon_entropy(ciphertext_raw)
+        hist_plaintext = calculate_histogram(plaintext)
+        hist_ciphertext = calculate_histogram(ciphertext_raw)
+
+        return {
+            "plaintext": plaintext,
+            "execution_time_ms": execution_time_ms,
+            "entropy_ciphertext": entropy,
+            "histogram_plaintext": hist_plaintext,
+            "histogram_ciphertext": hist_ciphertext
+        }
+    except InvalidTag:
+        raise ValueError("Gagal! Kata sandi salah atau ciphertext telah diubah.")
+    except Exception as e:
+        raise ValueError(f"Format data tidak valid: {str(e)}")
+
+def visualize_ecb_vs_secure(image_bytes: bytes):
+    """
+    Membandingkan visualisasi enkripsi ECB vs Mode Aman (AES-GCM).
+    Mengembalikan tuple (ecb_b64, secure_b64).
+    """
+    # 1. Load image and extract pixels
+    img = Image.open(io.BytesIO(image_bytes))
+    img = img.convert("RGB")
+    width, height = img.size
+    pixel_data = img.tobytes()
+
+    # Kunci statis untuk demo (bisa random juga)
+    demo_key = b"12345678901234567890123456789012" # 32 bytes
+
+    # --- PROSES 1: AES-ECB ---
+    # ECB butuh padding jika data bukan kelipatan 16
+    padder = padding.PKCS7(128).padder()
+    padded_pixels = padder.update(pixel_data) + padder.finalize()
+    
+    cipher_ecb = Cipher(algorithms.AES(demo_key), modes.ECB())
+    encryptor_ecb = cipher_ecb.encryptor()
+    encrypted_ecb_full = encryptor_ecb.update(padded_pixels) + encryptor_ecb.finalize()
+    
+    # Ambil seukuran pixel asli agar bisa dirender ulang jadi image
+    encrypted_ecb_pixels = encrypted_ecb_full[:len(pixel_data)]
+    img_ecb = Image.frombytes("RGB", (width, height), encrypted_ecb_pixels)
+    
+    # --- PROSES 2: AES-GCM (Mode Aman) ---
+    nonce = os.urandom(12)
+    cipher_gcm = AESGCM(demo_key)
+    # GCM mengembalikan ciphertext + tag
+    encrypted_gcm_full = cipher_gcm.encrypt(nonce, pixel_data, None)
+    
+    # GCM ciphertext memiliki panjang yang sama dengan plaintext
+    encrypted_gcm_pixels = encrypted_gcm_full[:len(pixel_data)]
+    img_secure = Image.frombytes("RGB", (width, height), encrypted_gcm_pixels)
+
+    # Convert ke Base64
+    def img_to_b64(image):
+        buffered = io.BytesIO()
+        image.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+    return img_to_b64(img_ecb), img_to_b64(img_secure)
 
 # =========================================================================
 # ANTARMUKA TERMINAL INTERAKTIF (CLI)

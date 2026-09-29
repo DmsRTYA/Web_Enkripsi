@@ -41,7 +41,7 @@ export default function ChooseFileButton({
       
       <label 
         onClick={() => fileInputRef.current?.click()}
-        className="group relative flex items-center gap-5 p-4 rounded-3xl bg-white/5 backdrop-blur-3xl border border-white/10 cursor-pointer transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-white/8 hover:border-indigo-400/40 hover:-translate-y-1 hover:shadow-[0_25px_50px_-10px_rgba(99,102,241,0.25),0_0_30px_rgba(99,102,241,0.15)] active:translate-y-0 active:scale-[0.98]"
+        className="group relative flex items-center gap-5 p-4 rounded-3xl bg-white/5 backdrop-blur-3xl border border-white/10 cursor-pointer transition-all duration-400 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-white/8 hover:border-indigo-400/40 hover:-translate-y-1 active:translate-y-0 active:scale-[0.98]"
       >
         {/* Highlight Line */}
         <div className="absolute top-0 left-[15%] right-[15%] h-px bg-linear-to-r from-transparent via-white/25 to-transparent rounded-full" />
@@ -52,7 +52,7 @@ export default function ChooseFileButton({
           <div className="absolute inset-0 bg-linear-gradient-to-br from-[#1e1b4b] to-[#0f172a] rounded-xl border border-indigo-900/50 -rotate-3 scale-95 opacity-60 transition-all duration-400 group-hover:rotate-[-7deg] group-hover:scale-95 group-hover:opacity-90 group-hover:border-indigo-400/40" />
           
           {/* Front Glass Sheet */}
-          <div className="absolute inset-0 bg-linear-gradient-to-br from-[#1e1b4b]/70 to-[#0f172a]/90 rounded-xl border border-indigo-400/30 flex items-center justify-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),0_8px_20px_rgba(0,0,0,0.4)] transition-all duration-400 group-hover:border-indigo-300/60 group-hover:shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_12px_25px_rgba(99,102,241,0.3)]">
+          <div className="absolute inset-0 bg-linear-gradient-to-br from-[#1e1b4b]/70 to-[#0f172a]/90 rounded-xl border border-indigo-400/30 flex items-center justify-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.2),0_8px_20px_rgba(0,0,0,0.4)] transition-all duration-400 group-hover:border-indigo-300/60">
             <FileUp className="w-6 h-6 text-indigo-400 transition-all duration-400 group-hover:text-indigo-300 group-hover:-translate-y-0.5 drop-shadow-[0_2px_8px_rgba(99,102,241,0.5)]" />
             {/* Folded Corner */}
             <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-linear-gradient-to-bl from-white/20 to-indigo-400/40 rounded-bl-lg border-l border-b border-white/10" />

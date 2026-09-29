@@ -8,7 +8,7 @@ interface SkewCardProps {
   description: string;
   gradientFrom: string;
   gradientTo: string;
-  iconVariant: "encrypt" | "decrypt";
+  iconVariant: "encrypt" | "decrypt" | "visualize" | "database";
   onClick: () => void;
   children?: React.ReactNode;
 }

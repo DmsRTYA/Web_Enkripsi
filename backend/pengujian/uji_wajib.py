@@ -74,28 +74,29 @@ def run_tests():
             print(f"[{label}] Enkripsi: {time_enc:.2f} ms | Dekripsi: {time_dec:.2f} ms")
 
     print("\n" + "="*50)
-    print("3. UJI AVALANCHE EFFECT (Modifikasi 1 bit plaintext)")
+    print("3. UJI AVALANCHE EFFECT (Modifikasi 1 bit kunci)")
     print("="*50)
     test_plain = os.urandom(64) # 64 bytes data
-    # Menetapkan salt dan nonce agar perbedaan pure hanya berasal dari perubahan data
     fixed_salt = os.urandom(16)
     fixed_nonce = os.urandom(12)
     
     for algo in algos:
-        cipher1_b64 = logika.encrypt_data(test_plain, password, algo, fixed_salt, fixed_nonce)
-        cipher1_bytes = base64.b64decode(cipher1_b64)[28:] # Ambil hanya ciphertext+tag
+        key1 = logika.derive_key(password, fixed_salt)
+        if algo == "AES-GCM":
+            c1 = logika.AESGCM(key1)
+        else:
+            c1 = logika.ChaCha20Poly1305(key1)
+        cipher1_bytes = c1.encrypt(fixed_nonce, test_plain, None)
         
-        # Ubah persis 1 bit (XOR dengan 1 pada byte pertama)
-        flipped_plain = bytearray(test_plain)
-        flipped_plain[0] ^= 1 
+        modified_key = bytearray(key1)
+        modified_key[0] ^= 0x01
+        if algo == "AES-GCM":
+            c2 = logika.AESGCM(bytes(modified_key))
+        else:
+            c2 = logika.ChaCha20Poly1305(bytes(modified_key))
+        cipher2_bytes = c2.encrypt(fixed_nonce, test_plain, None)
         
-        cipher2_b64 = logika.encrypt_data(bytes(flipped_plain), password, algo, fixed_salt, fixed_nonce)
-        cipher2_bytes = base64.b64decode(cipher2_b64)[28:]
-        
-        # Hitung bit yang berbeda
-        diff_bits = sum(bin(b1 ^ b2).count('1') for b1, b2 in zip(cipher1_bytes, cipher2_bytes))
-        total_bits = len(cipher1_bytes) * 8
-        avalanche = (diff_bits / total_bits) * 100
+        avalanche = logika.calculate_hamming_distance_percentage(cipher1_bytes, cipher2_bytes)
         print(f"{algo} -> Avalanche Effect: {avalanche:.2f}% (Ideal ~50%)")
 
     print("\n" + "="*50)

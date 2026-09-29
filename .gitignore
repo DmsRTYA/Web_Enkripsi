@@ -2,6 +2,7 @@
 frontend/node_modules/
 frontend/.next/
 frontend/dist/
+frontend/tsconfig.tsbuildinfo
 
 # Python
 backend/venv/
@@ -12,15 +13,26 @@ backend/*.pyd
 backend/.pytest_cache/
 backend/pengujian/__pycache__/
 
+# System/Environment
+.env
+.env.local
+*.pem
+*.key
+*.log
+.DS_Store
+
+# IDE
+.vscode/*
+
 # Output Data
 
 .agents/
 
 # Berkas Rahasia
-.env
-*.pem
-*.key
-*.log
 prompt.txt
 progres.md
+databasescema.md
+DESIGN.md
+PRODUCT.md
+demo.md
 skills-lock.json

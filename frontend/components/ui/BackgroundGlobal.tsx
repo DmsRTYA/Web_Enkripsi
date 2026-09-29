@@ -117,7 +117,7 @@ export default function BackgroundGlobal() {
         className="absolute inset-0 pointer-events-none"
         style={{
           background: 'radial-gradient(circle 600px at var(--mx, 50%) var(--my, 50%), var(--c1, #7928ca) 0%, var(--c2, #00d0ff) 40%, transparent 70%)',
-          opacity: 0.15,
+          opacity: 0.03,
           transition: 'background 0.6s ease',
           zIndex: 1,
         }}
@@ -140,7 +140,7 @@ export default function BackgroundGlobal() {
           className="absolute inset-0 rounded-full"
           style={{
             background: 'radial-gradient(circle, #7928ca 0%, rgba(121, 40, 202, 0) 70%)',
-            opacity: 0.85,
+            opacity: 0.20,
             animation: 'floatLoop1 12s ease-in-out infinite alternate, pulseGlow 4s ease-in-out infinite',
             willChange: 'transform',
           }}
@@ -163,7 +163,7 @@ export default function BackgroundGlobal() {
           className="absolute inset-0 rounded-full"
           style={{
             background: 'radial-gradient(circle, #00f2fe 0%, rgba(0, 242, 254, 0) 70%)',
-            opacity: 0.75,
+            opacity: 0.18,
             animation: 'floatLoop2 16s ease-in-out infinite alternate, pulseGlow 5s ease-in-out infinite',
             willChange: 'transform',
           }}
@@ -186,7 +186,7 @@ export default function BackgroundGlobal() {
           className="absolute inset-0 rounded-full"
           style={{
             background: 'radial-gradient(circle, #00f5d4 0%, rgba(0, 245, 212, 0) 70%)',
-            opacity: 0.65,
+            opacity: 0.15,
             animation: 'floatLoop3 14s ease-in-out infinite alternate, pulseGlow 4.5s ease-in-out infinite',
             willChange: 'transform',
           }}
@@ -209,7 +209,7 @@ export default function BackgroundGlobal() {
           className="absolute inset-0 rounded-full"
           style={{
             background: 'radial-gradient(circle, #ff007f 0%, rgba(255, 0, 127, 0) 70%)',
-            opacity: 0.6,
+            opacity: 0.14,
             animation: 'floatLoop1 11s ease-in-out infinite alternate-reverse, pulseGlow 5.5s ease-in-out infinite',
             willChange: 'transform',
           }}
@@ -220,7 +220,7 @@ export default function BackgroundGlobal() {
       <div
         className="absolute inset-0"
         style={{
-          background: 'rgba(13, 11, 26, 0.25)',
+          background: 'rgba(13, 11, 26, 0.05)',
           backdropFilter: 'blur(55px)',
           WebkitBackdropFilter: 'blur(55px)',
           border: '1px solid rgba(255, 255, 255, 0.05)',
@@ -287,10 +287,10 @@ export default function BackgroundGlobal() {
 
         @keyframes pulseGlow {
           0%, 100% {
-            opacity: 0.7;
+            opacity: 0.15;
           }
           50% {
-            opacity: 1;
+            opacity: 0.30;
           }
         }
       `}</style>

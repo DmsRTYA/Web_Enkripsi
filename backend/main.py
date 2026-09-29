@@ -6,26 +6,21 @@ import logika
 
 app = FastAPI(title="API Portal Agen Rahasia")
 
-# Tambahkan CORS Middleware agar bisa diakses oleh Next.js frontend
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://aplikasi-kripto.vercel.app", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# =========================================================================
-# SCHEMAS (Format Data Request)
-# =========================================================================
 class TextRequest(BaseModel):
     teks: str
     password_kripto: str
     algo: str = "AES-GCM"
 
-# =========================================================================
-# ENDPOINTS API RESTful
-# =========================================================================
+# RESTful API Endpoints
 
 @app.get("/")
 def home():
@@ -42,16 +37,23 @@ def models():
 @app.post("/api/enkripsi/teks")
 def enkripsi_teks(req: TextRequest):
     try:
-        hasil_b64 = logika.encrypt_data(req.teks.encode('utf-8'), req.password_kripto, req.algo)
-        return {"status": "sukses", "ciphertext": hasil_b64}
+        res = logika.encrypt_data_with_metrics(req.teks.encode('utf-8'), req.password_kripto, req.algo)
+        return {"status": "sukses", **res}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/dekripsi/teks")
 def dekripsi_teks(req: TextRequest):
     try:
-        hasil_bytes = logika.decrypt_data(req.teks, req.password_kripto, req.algo)
-        return {"status": "sukses", "plaintext": hasil_bytes.decode('utf-8')}
+        res = logika.decrypt_data_with_metrics(req.teks, req.password_kripto, req.algo)
+        return {
+            "status": "sukses", 
+            "plaintext": res["plaintext"].decode('utf-8'),
+            "execution_time_ms": res["execution_time_ms"],
+            "entropy_ciphertext": res["entropy_ciphertext"],
+            "histogram_plaintext": res["histogram_plaintext"],
+            "histogram_ciphertext": res["histogram_ciphertext"]
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -63,8 +65,8 @@ def enkripsi_file(
 ):
     try:
         file_bytes = file.file.read()
-        hasil_b64 = logika.encrypt_data(file_bytes, password_kripto, algo)
-        return {"status": "sukses", "filename": file.filename, "ciphertext": hasil_b64}
+        res = logika.encrypt_data_with_metrics(file_bytes, password_kripto, algo)
+        return {"status": "sukses", "filename": file.filename, **res}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -76,10 +78,29 @@ def dekripsi_file(
 ):
     try:
         ciphertext = file.file.read().decode('utf-8').strip()
-        file_bytes = logika.decrypt_data(ciphertext, password_kripto, algo)
-        # Mengembalikan string Base64 dari file asli agar mudah diunduh oleh frontend
+        res = logika.decrypt_data_with_metrics(ciphertext, password_kripto, algo)
         import base64
-        file_b64 = base64.b64encode(file_bytes).decode('utf-8')
-        return {"status": "sukses", "file_asli_b64": file_b64}
+        file_b64 = base64.b64encode(res["plaintext"]).decode('utf-8')
+        return {
+            "status": "sukses", 
+            "file_asli_b64": file_b64,
+            "execution_time_ms": res["execution_time_ms"],
+            "entropy_ciphertext": res["entropy_ciphertext"],
+            "histogram_plaintext": res["histogram_plaintext"],
+            "histogram_ciphertext": res["histogram_ciphertext"]
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/api/visualize-ecb")
+async def visualize_ecb(file: UploadFile = File(...)):
+    try:
+        image_bytes = await file.read()
+        ecb_b64, secure_b64 = logika.visualize_ecb_vs_secure(image_bytes)
+        return {
+            "status": "sukses",
+            "ecb_image_base64": ecb_b64,
+            "secure_image_base64": secure_b64
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Gagal memproses visualisasi: {str(e)}")

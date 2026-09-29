@@ -39,39 +39,23 @@ versi dimas/
 │   │   ├── page.tsx     # Main UI (single-page app)
 │   │   ├── layout.tsx   # Root layout + fonts
 │   │   └── globals.css  # Tailwind + theme
+│   ├── components/ui/   # UI components (BackgroundGlobal, SkewCard, etc.)
+│   ├── hooks/           # Custom hooks (history)
+│   ├── lib/             # Supabase client, password encryption
 │   ├── package.json
 │   └── next.config.ts
 ├── PRODUCT.md           # Design authority (Impeccable skill)
 ├── progres.md           # Development log
-└── myapl.md             # This file
+├── DESIGN.md            # Design specifications
+└── README.md            # This file
 ```
 
 ---
 
-## Cara Menjalankan (Step-by-Step)
-
-### 1. Backend (Terminal 1)
-```bash
-cd backend
-# Install dependencies (sekali saja)
-pip install -r requirements.txt
-
-# Jalankan server
-uvicorn main:app --reload --port 8000
-```
-✅ Server running di: **http://localhost:8000**  
-📚 API Docs: **http://localhost:8000/docs**
-
-### 2. Frontend (Terminal 2)
-```bash
-cd frontend
-# Install dependencies (sekali saja)
-npm install
-
-# Jalankan dev server
-npm run dev
-```
-✅ Server running di: **http://localhost:3000** (atau 3001 kalau 3000 dipakai)
+## Deployment
+- **Frontend**: Vercel (URL: [https://aplikasi-kripto.vercel.app](https://aplikasi-kripto.vercel.app))
+- **Backend**: Render (URL: [https://aplikasikripto.onrender.com](https://aplikasikripto.onrender.com))
+- **CORS Configuration**: Restrict to Vercel production domain and localhost:3000
 
 ---
 
