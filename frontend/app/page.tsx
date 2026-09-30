@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Eye, EyeOff, ChevronDown, AlertCircle, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BackgroundGlobal from '@/components/ui/BackgroundGlobal';
@@ -24,6 +24,7 @@ export default function Home() {
   const [contentType, setContentType] = useState<ContentType>('text');
   const [loading, setLoading] = useState(false);
   const [showSecondRow, setShowSecondRow] = useState(false);
+  const [retryAfter, setRetryAfter] = useState(0);
 
   const [textInput, setTextInput] = useState('');
   const [password, setPassword] = useState('');
@@ -117,6 +118,83 @@ export default function Home() {
     }
   }, [fileLockout]);
 
+  // Initialize state from sessionStorage
+  const isRestoredRef = useRef(false);
+  useEffect(() => {
+    if (isRestoredRef.current) return;
+    isRestoredRef.current = true;
+    
+    const savedState = sessionStorage.getItem('appState');
+    console.log('DEBUG: Loaded from sessionStorage:', savedState);
+    if (savedState) {
+      try {
+        const state = JSON.parse(savedState);
+        console.log('DEBUG: Parsed state:', state);
+        if (state.mode && ['menu', 'encrypt', 'decrypt', 'visualize', 'history'].includes(state.mode)) {
+          setMode(state.mode);
+        }
+        if (state.contentType && ['text', 'file'].includes(state.contentType)) {
+          setContentType(state.contentType);
+        }
+        if (state.historyType && ['text', 'file'].includes(state.historyType)) {
+          setHistoryType(state.historyType);
+        }
+        if (typeof state.textInput === 'string') {
+          setTextInput(state.textInput);
+        }
+        if (typeof state.algo === 'string') {
+          setAlgo(state.algo);
+        }
+        if (typeof state.fileAlgo === 'string') {
+          setFileAlgo(state.fileAlgo);
+        }
+      } catch (e) {
+        console.warn('Failed to parse sessionStorage state:', e);
+        sessionStorage.removeItem('appState');
+      }
+    }
+  }, []);
+
+  // Save state to sessionStorage
+  useEffect(() => {
+    const state = { mode, contentType, historyType, textInput, algo, fileAlgo };
+    console.log('DEBUG: Saving to sessionStorage:', state);
+    sessionStorage.setItem('appState', JSON.stringify(state));
+  }, [mode, contentType, historyType, textInput, algo, fileAlgo]);
+
+  // Reset state helper
+  const clearErrors = () => {
+    setTextError('');
+    setFileError('');
+    setRetryAfter(0);
+  };
+
+  // Effect to clean error when retry expires without reload, 
+  // or after reload (because of state restoration)
+  useEffect(() => {
+    if (retryAfter === 0) {
+      if (textError.includes('Terlalu banyak permintaan')) setTextError('');
+      if (fileError.includes('Terlalu banyak permintaan')) setFileError('');
+    }
+  }, [retryAfter]);
+
+  // Rate limit countdown effect
+  useEffect(() => {
+    if (retryAfter > 0) {
+      const timer = setInterval(() => {
+        setRetryAfter(prev => {
+          if (prev <= 1) {
+             // Delay to ensure state saved before reload
+            window.location.reload();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [retryAfter]);
+
 
   const resetState = () => {
     setTextInput(''); setPassword(''); setTextResult(''); setTextError('');
@@ -125,6 +203,7 @@ export default function Home() {
   };
 
   const handleEncryptText = async () => {
+    if (retryAfter > 0) return;
     if (!textInput.trim() || !password.trim()) { setTextError('Field wajib diisi'); return; }
     if (!validatePassword(password)) { setTextError('Password minimal 6 karakter dan mengandung huruf + angka'); return; }
     if (textLockout > 0) { setTextError(`Tersedia ${textLockout} detik lagi`); return; }
@@ -135,7 +214,12 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ teks: textInput, password_kripto: password, algo: algo }),
       });
-      if (!response.ok) {
+      if (response.status === 429) {
+        const secs = Number(response.headers.get('Retry-After') ?? 15);
+        setRetryAfter(secs);
+        setTextError(`Terlalu banyak permintaan. Coba lagi dalam ${secs} detik.`);
+        setTextFailedAttempts(0);
+      } else if (!response.ok) {
         const error = await response.json();
         setTextError(error.detail || 'Enkripsi gagal');
         const attempts = textFailedAttempts + 1;
@@ -167,8 +251,8 @@ export default function Home() {
   };
 
   const handleDecryptText = async () => {
+    if (retryAfter > 0) return;
     if (!textInput.trim() || !password.trim()) { setTextError('Field wajib diisi'); return; }
-    // Password validation removed for decryption per security requirement
     if (textLockout > 0) { setTextError(`Tersedia ${textLockout} detik lagi`); return; }
     setLoading(true); setTextError(''); setTextResult(''); setMetrics(null);
     try {
@@ -177,7 +261,12 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ teks: textInput, password_kripto: password, algo: algo }),
       });
-      if (!response.ok) {
+      if (response.status === 429) {
+        const secs = Number(response.headers.get('Retry-After') ?? 15);
+        setRetryAfter(secs);
+        setTextError(`Terlalu banyak permintaan. Coba lagi dalam ${secs} detik.`);
+        setTextFailedAttempts(0);
+      } else if (!response.ok) {
         const error = await response.json();
         setTextError(error.detail || 'Dekripsi gagal');
         const attempts = textFailedAttempts + 1;
@@ -208,6 +297,7 @@ export default function Home() {
   };
 
   const handleEncryptFile = async () => {
+    if (retryAfter > 0) return;
     if (!file || !filePassword.trim()) { setFileError('Field wajib diisi'); return; }
     if (!validatePassword(filePassword)) { setFileError('Password minimal 6 karakter dan mengandung huruf + angka'); return; }
     if (fileLockout > 0) { setFileError(`Tersedia ${fileLockout} detik lagi`); return; }
@@ -216,7 +306,12 @@ export default function Home() {
       const formData = new FormData();
       formData.append('file', file); formData.append('password_kripto', filePassword); formData.append('algo', fileAlgo);
       const response = await fetch(`${API_BASE}/api/enkripsi/file`, { method: 'POST', body: formData });
-      if (!response.ok) {
+      if (response.status === 429) {
+        const secs = Number(response.headers.get('Retry-After') ?? 15);
+        setRetryAfter(secs);
+        setFileError(`Terlalu banyak permintaan. Coba lagi dalam ${secs} detik.`);
+        setFileFailedAttempts(0);
+      } else if (!response.ok) {
         const error = await response.json();
         setFileError(error.detail || 'Enkripsi file gagal');
         const attempts = fileFailedAttempts + 1;
@@ -250,15 +345,20 @@ export default function Home() {
   };
 
   const handleDecryptFile = async () => {
+    if (retryAfter > 0) return;
     if (!file || !filePassword.trim()) { setFileError('Field wajib diisi'); return; }
-    // Password validation removed for decryption per security requirement
     if (fileLockout > 0) { setFileError(`Tersedia ${fileLockout} detik lagi`); return; }
     setLoading(true); setFileError(''); setFileResult(''); setMetrics(null);
     try {
       const formData = new FormData();
       formData.append('file', file); formData.append('password_kripto', filePassword); formData.append('algo', fileAlgo);
       const response = await fetch(`${API_BASE}/api/dekripsi/file`, { method: 'POST', body: formData });
-      if (!response.ok) {
+      if (response.status === 429) {
+        const secs = Number(response.headers.get('Retry-After') ?? 15);
+        setRetryAfter(secs);
+        setFileError(`Terlalu banyak permintaan. Coba lagi dalam ${secs} detik.`);
+        setFileFailedAttempts(0);
+      } else if (!response.ok) {
         const error = await response.json();
         setFileError(error.detail || 'Dekripsi file gagal');
         const attempts = fileFailedAttempts + 1;
@@ -582,9 +682,9 @@ export default function Home() {
                   </div>
                 </div>
 
-                <button onClick={mode === 'encrypt' ? handleEncryptText : handleDecryptText} disabled={loading || !textInput.trim() || !password.trim()}
+                <button onClick={mode === 'encrypt' ? handleEncryptText : handleDecryptText} disabled={loading || !textInput.trim() || !password.trim() || retryAfter > 0}
                   className="w-full glass-button py-5 text-base font-bold uppercase tracking-widest bg-linear-to-r from-orange-500 to-yellow-500 border-none disabled:opacity-50 disabled:cursor-not-allowed">
-                  {loading ? 'Processing...' : (mode === 'encrypt' ? 'Encrypt Now' : 'Decrypt Now')}
+                  {loading ? 'Processing...' : (retryAfter > 0 ? `Wait ${retryAfter}s` : (mode === 'encrypt' ? 'Encrypt Now' : 'Decrypt Now'))}
                 </button>
 
                 {textError && (
@@ -641,9 +741,9 @@ export default function Home() {
                   </div>
                 </div>
 
-                <button onClick={mode === 'encrypt' ? handleEncryptFile : handleDecryptFile} disabled={loading || !file || !filePassword.trim()}
+                <button onClick={mode === 'encrypt' ? handleEncryptFile : handleDecryptFile} disabled={loading || !file || !filePassword.trim() || retryAfter > 0}
                   className="w-full glass-button py-5 text-base font-bold uppercase tracking-widest bg-linear-to-r from-orange-500 to-yellow-500 border-none disabled:opacity-50">
-                  {loading ? 'Processing...' : (mode === 'encrypt' ? 'Encrypt File' : 'Decrypt File')}
+                  {loading ? 'Processing...' : (retryAfter > 0 ? `Wait ${retryAfter}s` : (mode === 'encrypt' ? 'Encrypt File' : 'Decrypt File'))}
                 </button>
 
                 {fileError && (
