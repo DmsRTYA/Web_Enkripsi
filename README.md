@@ -322,6 +322,14 @@ A: Requirement eksplisit: "Authentication bypassed/disabled untuk direct web acc
 
 ---
 
+## Anggota Kelompok
+
+| Nama | NPM | Kontribusi Utama |
+|------|-----|------------------|
+| Rendi Yogi Ramdani | 247006111084 | Backend API (FastAPI), Crypto Logic, Deployment (Render), Git Repository |
+| Rafi Ahnaf Hanafi | 247006111089 | Frontend UI/UX (Glassmorphism), Supabase Integration, History System |
+| Dhimas Raditya | 247006111119 | Crypto Metrics Analysis, Visualizer Feature, Excel Export, UI Polish |
+
 ## Kontak / Referensi
 
 - **FastAPI Docs**: https://fastapi.tiangolo.com

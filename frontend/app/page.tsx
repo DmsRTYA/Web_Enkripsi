@@ -1,7 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Eye, EyeOff, ChevronDown, AlertCircle, Clock } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react'; 
+import { 
+  Eye, 
+  EyeOff, 
+  ChevronDown, 
+  AlertCircle, 
+  Clock, 
+  FileSpreadsheet, 
+  Loader2 
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BackgroundGlobal from '@/components/ui/BackgroundGlobal';
 import SkewCard from '@/components/ui/SkewCard';
@@ -25,6 +33,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [showSecondRow, setShowSecondRow] = useState(false);
   const [retryAfter, setRetryAfter] = useState(0);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const [textInput, setTextInput] = useState('');
   const [password, setPassword] = useState('');
@@ -53,6 +62,60 @@ export default function Home() {
 
   // History mode state
   const [historyType, setHistoryType] = useState<ContentType>('text');
+  const [downloadingTextExcel, setDownloadingTextExcel] = useState(false);
+  const [downloadingFileExcel, setDownloadingFileExcel] = useState(false);
+
+  const handleDownloadExcelTeks = async () => {
+    if (textHistory.length === 0) return;
+    setDownloadingTextExcel(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/download-excel/teks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(textHistory),
+      });
+      if (!response.ok) throw new Error('Gagal mengunduh Excel teks');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `riwayat_enkripsi_teks_${Date.now()}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal download Excel');
+    } finally {
+      setDownloadingTextExcel(false);
+    }
+  };
+
+  const handleDownloadExcelFile = async () => {
+    if (fileHistory.length === 0) return;
+    setDownloadingFileExcel(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/download-excel/file`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fileHistory),
+      });
+      if (!response.ok) throw new Error('Gagal mengunduh Excel file');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `riwayat_enkripsi_file_${Date.now()}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal download Excel');
+    } finally {
+      setDownloadingFileExcel(false);
+    }
+  };
   
   // Instance state management
   const textHook = useTextEncryptionHistory();
@@ -78,13 +141,25 @@ export default function Home() {
   useEffect(() => {
     if (mode !== 'menu') return;
 
-    const handleScroll = () => {
-      if (window.scrollY > 50) {
-        setShowSecondRow(true);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setShowSecondRow(true);
+        }
+      },
+      { threshold: 0 }
+    );
+
+    if (sentinelRef.current) {
+      observer.observe(sentinelRef.current);
+    }
+
+    return () => {
+      if (sentinelRef.current) {
+        observer.unobserve(sentinelRef.current);
       }
+      observer.disconnect();
     };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
   }, [mode]);
 
   // Lockout timer effects
@@ -243,7 +318,11 @@ export default function Home() {
         const { error: saveError } = await saveTextEncryptionHistory(
           data.ciphertext,
           encryptedPassword,
-          algo
+          algo,
+          data.execution_time_ms,
+          data.entropy_ciphertext,
+          data.avalanche_percentage,
+          data.histogram_base64
         );
         if (!saveError) mutateText();
       }
@@ -337,7 +416,11 @@ export default function Home() {
           encryptedPassword,
           fileAlgo,
           `${file.name}.enc`,
-          file.size
+          file.size,
+          data.execution_time_ms,
+          data.entropy_ciphertext,
+          data.avalanche_percentage,
+          data.histogram_base64
         );
         if (!saveError) mutateFile();
       }
@@ -383,7 +466,11 @@ export default function Home() {
           encryptedPassword,
           fileAlgo,
           `${file.name}.enc`,
-          file.size
+          file.size,
+          data.execution_time_ms,
+          data.entropy_ciphertext,
+          50.0,
+          data.histogram_base64
         );
         if (!saveError) mutateFile();
       }
@@ -450,7 +537,7 @@ export default function Home() {
             </div>
 
             <div className="flex justify-center">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-[62.72px] gap-y-[83.3px]">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-[62.72px] gap-y-[83.3px] relative">
                 <SkewCard
                   title="Encrypt"
                   description="Lock your data with advanced encryption"
@@ -482,6 +569,9 @@ export default function Home() {
                     Start Decryption
                   </button>
                 </SkewCard>
+
+                {/* Invisible sentinel positioned below grid */}
+                <div ref={sentinelRef} className="absolute -bottom-32 left-0 w-full h-px pointer-events-none" />
 
                 <AnimatePresence>
                   {showSecondRow && (
@@ -551,7 +641,7 @@ export default function Home() {
               <div className="w-24" />
             </div>
 
-            <div className="flex gap-3 mb-8 glass-nav p-2 rounded-full">
+            <div className="flex gap-3 mb-10 glass-nav p-2 rounded-full">
               {(['text', 'file'] as ContentType[]).map((type) => (
                 <button key={type}
                   onClick={() => setHistoryType(type)}
@@ -566,59 +656,79 @@ export default function Home() {
             </div>
 
             {historyType === 'text' ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-white/10">
-                      <th className="text-left py-3 px-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">Teks</th>
-                      <th className="text-left py-3 px-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">Password</th>
-                      <th className="text-left py-3 px-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">Timeline</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {textHistoryLoading ? (
-                      <tr><td colSpan={3} className="py-8 text-center text-slate-400 text-sm">Loading...</td></tr>
-                    ) : textHistory.length === 0 ? (
-                      <tr><td colSpan={3} className="py-8 text-center text-slate-400 text-sm">Belum ada data</td></tr>
-                    ) : (
-                      textHistory.map((row) => (
-                        <tr key={row.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                          <td className="py-3 px-4 text-slate-300 font-mono text-xs truncate max-w-[200px]">{row.ciphertext}</td>
-                          <td className="py-3 px-4 text-slate-300 font-mono text-xs truncate max-w-[150px]">{row.password_ciphertext}</td>
-                          <td className="py-3 px-4 text-slate-400 text-xs">{new Date(row.created_at).toLocaleString('id-ID')}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left py-3 px-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">Teks</th>
+                        <th className="text-left py-3 px-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">Algoritma</th>
+                        <th className="text-left py-3 px-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">Timeline</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {textHistoryLoading ? (
+                        <tr><td colSpan={3} className="py-8 text-center text-slate-400 text-sm">Loading...</td></tr>
+                      ) : textHistory.length === 0 ? (
+                        <tr><td colSpan={3} className="py-8 text-center text-slate-400 text-sm">Belum ada data</td></tr>
+                      ) : (
+                        textHistory.map((row) => (
+                          <tr key={row.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                            <td className="py-3 px-4 text-slate-300 font-mono text-xs truncate max-w-[200px]">{row.ciphertext}</td>
+                            <td className="py-3 px-4 text-slate-300 font-mono text-xs truncate max-w-[150px]">{row.method}</td>
+                            <td className="py-3 px-4 text-slate-400 text-xs">{new Date(row.created_at).toLocaleString('id-ID')}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <button
+                  onClick={handleDownloadExcelTeks}
+                  disabled={downloadingTextExcel || textHistory.length === 0}
+                  className="w-full glass-button py-5 text-base font-bold uppercase tracking-widest bg-linear-to-r from-orange-500 to-yellow-500 border-none disabled:opacity-50 disabled:cursor-not-allowed mt-6 flex items-center justify-center gap-2"
+                >
+                  {downloadingTextExcel ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                  {downloadingTextExcel ? 'Downloading...' : 'Download Excel File'}
+                </button>
+              </>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-white/10">
-                      <th className="text-left py-3 px-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">Nama File</th>
-                      <th className="text-left py-3 px-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">Password</th>
-                      <th className="text-left py-3 px-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">Timeline</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {fileHistoryLoading ? (
-                      <tr><td colSpan={3} className="py-8 text-center text-slate-400 text-sm">Loading...</td></tr>
-                    ) : fileHistory.length === 0 ? (
-                      <tr><td colSpan={3} className="py-8 text-center text-slate-400 text-sm">Belum ada data</td></tr>
-                    ) : (
-                      fileHistory.map((row) => (
-                        <tr key={row.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                          <td className="py-3 px-4 text-slate-300 font-mono text-xs truncate max-w-[200px]">{row.original_filename}</td>
-                          <td className="py-3 px-4 text-slate-300 font-mono text-xs truncate max-w-[150px]">{row.password_ciphertext}</td>
-                          <td className="py-3 px-4 text-slate-400 text-xs">{new Date(row.created_at).toLocaleString('id-ID')}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left py-3 px-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">Nama File</th>
+                        <th className="text-left py-3 px-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">Algoritma</th>
+                        <th className="text-left py-3 px-4 text-slate-400 font-semibold uppercase text-xs tracking-wider">Timeline</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fileHistoryLoading ? (
+                        <tr><td colSpan={3} className="py-8 text-center text-slate-400 text-sm">Loading...</td></tr>
+                      ) : fileHistory.length === 0 ? (
+                        <tr><td colSpan={3} className="py-8 text-center text-slate-400 text-sm">Belum ada data</td></tr>
+                      ) : (
+                        fileHistory.map((row) => (
+                          <tr key={row.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                            <td className="py-3 px-4 text-slate-300 font-mono text-xs truncate max-w-[200px]">{row.original_filename}</td>
+                            <td className="py-3 px-4 text-slate-300 font-mono text-xs truncate max-w-[150px]">{row.method}</td>
+                            <td className="py-3 px-4 text-slate-400 text-xs">{new Date(row.created_at).toLocaleString('id-ID')}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <button
+                  onClick={handleDownloadExcelFile}
+                  disabled={downloadingFileExcel || fileHistory.length === 0}
+                  className="w-full glass-button py-5 text-base font-bold uppercase tracking-widest bg-linear-to-r from-orange-500 to-yellow-500 border-none disabled:opacity-50 disabled:cursor-not-allowed mt-6 flex items-center justify-center gap-2"
+                >
+                  {downloadingFileExcel ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                  {downloadingFileExcel ? 'Downloading...' : 'Download Excel File'}
+                </button>
+              </>
             )}
           </div>
         )}
@@ -758,7 +868,7 @@ export default function Home() {
                       {mode === 'encrypt' ? `${file?.name}.enc` : formatDecryptedFilename(file?.name || 'file')}
                     </span>
                     <button onClick={() => downloadFile(fileResult, file?.name || 'file', mode === 'encrypt')} 
-                      className="glass-button px-6 py-3 text-sm uppercase tracking-wider font-bold bg-linear-to-r from-blue-500 to-purple-500 border-none secondary-glow ml-4">
+                      className="glass-button px-6 py-3 text-sm uppercase tracking-wider font-bold bg-linear-to-r from-blue-500 to-purple-500 border-none ml-4">
                       Download
                     </button>
                   </div>
