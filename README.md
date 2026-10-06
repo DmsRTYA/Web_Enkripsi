@@ -1,6 +1,14 @@
 # Portal Kriptografi - Project Overview
 
-## Apa Project Ini?
+## Anggota Kelompok
+
+| Nama | NPM | Kontribusi Utama |
+|------|-----|------------------|
+| Rendi Yogi Ramdani | 247006111084 | Backend API (FastAPI), System Testing, Deployment (Render), Supabase Integration |
+| Rafi Ahnaf Hanafi | 247006111089 | Frontend UI/UX (Glassmorphism), Debugging, UI Polish, History System |
+| Dhimas Raditya | 247006111119 | Backend Logic, Crypto Metrics Analysis, Visualizer Feature, Git Repository |
+
+## Konsep Projek
 
 Ini adalah **Portal Kriptografi** - aplikasi web untuk **enkripsi dan dekripsi teks & file** menggunakan algoritma modern dan aman.
 
@@ -23,6 +31,33 @@ Ini adalah **Portal Kriptografi** - aplikasi web untuk **enkripsi dan dekripsi t
 | **Styling** | Tailwind CSS | v4 | Utility-first, responsive, dark mode |
 | **Crypto** | `cryptography` library | 42+ | Standard industri, audited |
 | **Algoritma** | AES-GCM, ChaCha20-Poly1305 | - | AEAD (Authenticated Encryption) |
+
+---
+
+## Cara Menjalankan (Step-by-Step)
+
+### 1. Backend (Terminal 1)
+```bash
+cd backend
+# Install dependencies (sekali saja)
+pip install -r requirements.txt
+
+# Jalankan server
+uvicorn main:app --reload --port 8000
+```
+Server running di: **http://localhost:8000**  
+API Docs: **http://localhost:8000/docs**
+
+### 2. Frontend (Terminal 2)
+```bash
+cd frontend
+# Install dependencies (sekali saja)
+npm install
+
+# Jalankan dev server
+npm run dev
+```
+Server running di: **http://localhost:3000** (atau 3001 kalau 3000 dipakai)
 
 ---
 
@@ -321,14 +356,6 @@ A: Requirement eksplisit: "Authentication bypassed/disabled untuk direct web acc
 8. **Dockerize** untuk deployment mudah
 
 ---
-
-## Anggota Kelompok
-
-| Nama | NPM | Kontribusi Utama |
-|------|-----|------------------|
-| Rendi Yogi Ramdani | 247006111084 | Backend API (FastAPI), Crypto Logic, Deployment (Render), Git Repository |
-| Rafi Ahnaf Hanafi | 247006111089 | Frontend UI/UX (Glassmorphism), Supabase Integration, History System |
-| Dhimas Raditya | 247006111119 | Crypto Metrics Analysis, Visualizer Feature, Excel Export, UI Polish |
 
 ## Kontak / Referensi
 
